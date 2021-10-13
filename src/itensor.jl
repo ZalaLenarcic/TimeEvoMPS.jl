@@ -1,7 +1,7 @@
 # some extensions for ITensors functionality
 # the goal is to eventually contribute these upstream if found appropriate
 
-function findprimeinds(is::IndexSet, plevel::Int=-1)
+function findprimeinds(is::Tuple, plevel::Int=-1)
     if plevel>=0
         return filter(x->plev(x)==plevel, is)
     else
@@ -9,7 +9,7 @@ function findprimeinds(is::IndexSet, plevel::Int=-1)
     end
 end
 
-findprimeinds(A::ITensor,args...) = findprimeinds(A.inds,args...)
+findprimeinds(A::ITensor,args...) = findprimeinds(inds(A),args...)
 
 function isleftortho(M,i)
     i==length(M) && return true
