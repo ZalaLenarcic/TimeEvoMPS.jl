@@ -102,7 +102,7 @@ function apply!(cb::LocalMeasurementCallback, psi; t, sweepend, sweepdir, bond, 
             foreach(x->push!(x,zeros(length(psi))), values(measurements(cb)) )
         end
         if cb.SType=="mpdo"
-            measure_localops_mpdo!(cb,psi,bond+1)   #ZL is this order correct; first bond+1?
+            measure_localops_mpdo!(cb,psi,bond+1) 
             if alg isa TEBDalg
                 measure_localops_mpdo!(cb,psi,bond)
             elseif bond==1
