@@ -4,6 +4,7 @@ export TEvoCallback,
     SpecCallback,
     measurement_ts
 
+
 """
 A TEvoCallback can implement the following methods:
 
@@ -36,14 +37,16 @@ struct LocalMeasurementCallback <: TEvoCallback
     measurements::Dict{String, Measurement}
     ts::Vector{Float64}
     dt_measure::Float64
+    SType::String
 end
 
-function LocalMeasurementCallback(ops,sites,dt_measure)
+function LocalMeasurementCallback(ops,sites,dt_measure, SType)  #ZL: I used to need this SType::String="S=1/2")
     return LocalMeasurementCallback(ops,
                                     sites,
                                     Dict(o => Measurement[] for o in ops),
                                     Vector{Float64}(),
-                                    dt_measure)
+                                    dt_measure,
+                                    SType)
 end
 
 measurement_ts(cb::LocalMeasurementCallback) = cb.ts
@@ -72,6 +75,18 @@ function measure_localops!(cb::LocalMeasurementCallback,
     end
 end
 
+function measure_localops_mpdo!(cb::LocalMeasurementCallback,
+                                psi::MPS,
+                                i::Int)
+    for o in ops(cb)
+        phi=deepcopy(psi) #ZL: could we save time doing contractions with I insteady of copy?
+        phi[i]=noprime(op(o,siteind(psi,i))*phi[i])
+        m = inner(mpdo_I(phi),phi)/inner(mpdo_I(psi),psi)
+        imag(m)>1e-8 && (@warn "encountered finite imaginary part when measuring $o")
+        measurements(cb)[o][end][i]=real(m)
+    end
+end
+
 function apply!(cb::LocalMeasurementCallback, psi; t, sweepend, sweepdir, bond, alg, kwargs...)
     prev_t = length(measurement_ts(cb))>0 ? measurement_ts(cb)[end] : 0
 
@@ -86,12 +101,21 @@ function apply!(cb::LocalMeasurementCallback, psi; t, sweepend, sweepdir, bond, 
             push!(measurement_ts(cb), t)
             foreach(x->push!(x,zeros(length(psi))), values(measurements(cb)) )
         end
-        wf = psi[bond]*psi[bond+1]
-        measure_localops!(cb,wf,bond+1)
-        if alg isa TEBDalg
-            measure_localops!(cb,wf,bond)
-        elseif bond==1
-            measure_localops!(cb,wf,bond)
+        if cb.SType=="mpdo"
+            measure_localops_mpdo!(cb,psi,bond+1)   #ZL is this order correct; first bond+1?
+            if alg isa TEBDalg
+                measure_localops_mpdo!(cb,psi,bond)
+            elseif bond==1
+                measure_localops_mpdo!(cb,psi,bond)
+            end
+        else
+            wf = psi[bond]*psi[bond+1]
+            measure_localops!(cb,wf,bond+1)
+            if alg isa TEBDalg
+                measure_localops!(cb,wf,bond)
+            elseif bond==1
+                measure_localops!(cb,wf,bond)
+            end
         end
     end
 end

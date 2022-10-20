@@ -14,7 +14,7 @@ end
 
 coeff(sop::SiteTerm) = sop.coeff
 
-function ITensors.op(sites, sop::SiteTerm)
+function ITensors.op(sites::Vector{<: Index}, sop::SiteTerm)
     ops = split(sop.opname,"*")
     o = op(sites,String(ops[1]),sop.i)
     for j in 2:length(ops)
