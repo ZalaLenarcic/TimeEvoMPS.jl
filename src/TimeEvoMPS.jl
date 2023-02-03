@@ -13,6 +13,7 @@ include("callback.jl")
 include("tebd.jl")
 include("tdvp.jl")
 include("testutils.jl")
-include("mpdo.jl")
+#include("mpdo.jl")
+include("mpdo_gen.jl")
 
 end # module

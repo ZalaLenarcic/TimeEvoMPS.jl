@@ -115,8 +115,6 @@ function measure_localops_mpdo!(cb::LocalMeasurementCallback,
                 m = inner(mpdo_I(phi),phi)/inner(mpdo_I(psi),psi)
                 imag(m)>1e-8 && (@warn "encountered finite imaginary part when measuring $o")
                 measurements(cb)[o][end][i]=real(m)
-            else
-                 (@warn "something wrong with measure ops")
             end    
         # single site operator o
         elseif length(o)==2

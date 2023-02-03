@@ -3,13 +3,19 @@ export rho_init,
         measure_mpdo_single,
         measure_mpdo_long
 
-# const sz = [1. 0.;0. -1.]
-# const sx = [0. 1.; 1. 0.]
-# const sy = [0. -1.0im; +1.0im 0.]
-# const sp = [0. 1. ; 0. 0.]
-# const sm = [0. 0. ; 1. 0.]
-# const Pup = 1/2*(I(2)+sz)
-# const Pdn = 1/2*(I(2)-sz)
+const sz = [1. 0.;0. -1.]
+const sx = [0. 1.; 1. 0.]
+const sy = [0. -1.0im; +1.0im 0.]
+const sp = [0. 1. ; 0. 0.]
+const sm = [0. 0. ; 1. 0.]
+const id_half = [1. 0.; 0. 1.]
+
+const sz_1 = [1. 0. 0.;0. 0. 0.;0. 0. -1.]
+const sx_1 = (1.0/sqrt(2.0))*[0. 1. 0.;1. 0. 1.;0. 1. 0.]
+const sy_1 = (-1.0im/sqrt(2.0))*[0. 1. 0.;-1. 0. 1.;0. -1. 0.]
+const sp_1 = sqrt(2.0)*[0. 1. 0;0. 0. 1.;0. 0. 0.]
+const sm_1 = sqrt(2.0)*[0. 0. 0;1. 0. 0.;0. 1. 0.]
+const id_1 = [1. 0. 0.; 0. 1. 0.; 0. 0. 1.]
 
 # const pauli = Dict("I"=>Matrix(1.0I,2,2) ,"sx"=> sx,
 #                    "sy"=>sy, "sz"=>sz, "sp"=>sp, "sm"=>sm,
@@ -278,7 +284,12 @@ function mpdo_I(psi::MPS)
     M =  MPS(s)
     d = dim(s[1])
     
-    matID=Matrix((1.0+0.0im)*I,2,2)
+    #matID=Matrix((1.0+0.0im)*I,2,2)
+    if (d==4)
+        matID = id_half
+    else (d==9)
+        matID = id_1
+    end
     
     #l = linkinds(psi) 
     l = Vector{Index}(undef,N) 
