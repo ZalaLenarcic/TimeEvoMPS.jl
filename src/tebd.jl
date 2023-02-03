@@ -92,7 +92,7 @@ function tebd!(psi::MPS, H::GateList, dt::Number, tf::Number, alg::TEBDalg = TEB
     # TODO: think of the best way to avoid inexact error when dt is very small
     # one option would be to use round(tf/dt) and verify that abs(round(tf/dt)-tf/dt)
     # is smaller than some threshold. Another option would be to use big(Rational(dt)).
-    nsteps = Int(tf/dt)
+    nsteps = Int(round(tf/dt))
 
     # TODO: use ishermitian for imaginary time-evolution once exponentiation
     # of hermitian ITensor is fixed (see https://github.com/ITensor/NDTensors.jl/pull/15).
@@ -149,7 +149,7 @@ function tebd!(psi::MPS, H::GateList, dt::Number, tf::Number, alg::TEBDalg = TEB
             !isnothing(pbar) && ProgressMeter.next!(pbar, showvalues=[("t", dt*step),
                                                                   ("dt step time", round(stime,digits=3)),
                                                                   ("Max bond-dim", maxlinkdim(psi))])
-            checkdone!(cb,psi) && break
+            checkdone!(cb) && break
         end
 
         #finalize the last time step from the bunched steps
@@ -173,7 +173,7 @@ function tebd!(psi::MPS, H::GateList, dt::Number, tf::Number, alg::TEBDalg = TEB
         # TODO: make this a callback
         (orthogonalize_step>0 && step % orthogonalize_step ==0) && reorthogonalize!(psi)
 
-        checkdone!(cb,psi) && break
+        checkdone!(cb) && break
     end
     return psi
 end

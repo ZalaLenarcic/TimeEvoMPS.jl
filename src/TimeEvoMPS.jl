@@ -4,6 +4,7 @@ using LinearAlgebra
 using Printf
 using KrylovKit: exponentiate
 using ProgressMeter
+using StatsBase
 
 include("itensor.jl")
 include("bondgate.jl")

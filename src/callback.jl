@@ -38,15 +38,21 @@ struct LocalMeasurementCallback <: TEvoCallback
     ts::Vector{Float64}
     dt_measure::Float64
     SType::String
+    deriv_tol::Float64
+    cd_coefs::Vector{Float64}
+    cd_site::Int64
 end
 
-function LocalMeasurementCallback(ops,sites,dt_measure, SType)  #ZL: I used to need this SType::String="S=1/2")
+function LocalMeasurementCallback(ops,sites,dt_measure, SType,deriv_tol,cd_coefs,cd_site)  #ZL: I used to need this SType::String="S=1/2")
     return LocalMeasurementCallback(ops,
                                     sites,
                                     Dict(o => Measurement[] for o in ops),
                                     Vector{Float64}(),
                                     dt_measure,
-                                    SType)
+                                    SType,
+                                    deriv_tol,
+                                    cd_coefs,
+                                    cd_site)
 end
 
 measurement_ts(cb::LocalMeasurementCallback) = cb.ts
@@ -54,6 +60,7 @@ ITensors.measurements(cb::LocalMeasurementCallback) = cb.measurements
 callback_dt(cb::LocalMeasurementCallback) = cb.dt_measure
 ops(cb::LocalMeasurementCallback) = cb.ops
 sites(cb::LocalMeasurementCallback) = cb.sites
+deriv_tol(cb::LocalMeasurementCallback) = cb.deriv_tol
 
 function Base.show(io::IO, cb::LocalMeasurementCallback)
     println(io, "LocalMeasurementCallback")
@@ -75,15 +82,51 @@ function measure_localops!(cb::LocalMeasurementCallback,
     end
 end
 
+# function measure_localops_mpdo!(cb::LocalMeasurementCallback,
+#                                 psi::MPS,
+#                                 i::Int)
+#     for o in ops(cb)
+#         phi=deepcopy(psi) #ZL: could we save time doing contractions with I insteady of copy?
+#         phi[i]=noprime(op(o,siteind(psi,i))*phi[i])
+#         m = inner(mpdo_I(phi),phi)/inner(mpdo_I(psi),psi)
+#         imag(m)>1e-8 && (@warn "encountered finite imaginary part when measuring $o")
+#         measurements(cb)[o][end][i]=real(m)
+#     end
+# end
+
 function measure_localops_mpdo!(cb::LocalMeasurementCallback,
                                 psi::MPS,
                                 i::Int)
+    # perform measurement of ops(cb) at site i in psi
+    # distinguish single site and two site ops whose product is denoted by "o"
+    # for two site ops length(o)>2; then measure only at i<N
+    # more then two site operators are not expected
     for o in ops(cb)
-        phi=deepcopy(psi) #ZL: could we save time doing contractions with I insteady of copy?
-        phi[i]=noprime(op(o,siteind(psi,i))*phi[i])
-        m = inner(mpdo_I(phi),phi)/inner(mpdo_I(psi),psi)
-        imag(m)>1e-8 && (@warn "encountered finite imaginary part when measuring $o")
-        measurements(cb)[o][end][i]=real(m)
+        phi=deepcopy(psi) 
+        # two site operator o
+        if length(o)>2 
+            if o[3]=='o' && i<length(psi)
+                oo=join([o[1],o[2]])
+                phi[i]=noprime(op(oo,siteind(psi,i))*phi[i])
+
+                oo=join([o[4],o[5]])
+                phi[i+1]=noprime(op(oo,siteind(psi,i+1))*phi[i+1])
+
+                m = inner(mpdo_I(phi),phi)/inner(mpdo_I(psi),psi)
+                imag(m)>1e-8 && (@warn "encountered finite imaginary part when measuring $o")
+                measurements(cb)[o][end][i]=real(m)
+            else
+                 (@warn "something wrong with measure ops")
+            end    
+        # single site operator o
+        elseif length(o)==2
+            phi[i]=noprime(op(o,siteind(psi,i))*phi[i])
+            m = inner(mpdo_I(phi),phi)/inner(mpdo_I(psi),psi)
+            imag(m)>1e-8 && (@warn "encountered finite imaginary part when measuring $o")
+            measurements(cb)[o][end][i]=real(m)
+        else
+            (@warn "something wrong with measure ops")
+        end
     end
 end
 
@@ -121,7 +164,32 @@ function apply!(cb::LocalMeasurementCallback, psi; t, sweepend, sweepdir, bond, 
 end
 
 
-checkdone!(cb::LocalMeasurementCallback,args...) = false
+#checkdone!(cb::LocalMeasurementCallback,args...) = false
+function checkdone!(cb::LocalMeasurementCallback)
+    # implement stopping conditions by looking at sum of measurements
+    # averaged over 10 steps [hardcoded], 
+    # weight measurements cb.ops[k] with coefs cb.cd_coefs[k]
+    # measurement done on site cb.cd_sites
+    # stop if change is smaller then c.deriv_tol
+    # measured cb.cd_site site should be odd, otherwise problem due to TEBD 
+
+    if mod(cb.cd_site,2)==0
+        (@error "measured site should be odd")
+    end
+
+    len=length(cb.ts)
+    if len<=10
+        return false
+    else
+        datT=zeros(11)
+        for (k,coef) in enumerate(cb.cd_coefs)
+            datT.+=coef*view(getindex.(measurements(cb)[cb.ops[k]],cb.cd_site),len-10:len)
+        end
+        dM = [(datT[j+1] - datT[j])/cb.dt_measure for j in 1:10]
+        dM = mean(abs.(dM))
+        dM<cb.deriv_tol ? (return true) : (return false)
+    end
+end
 
 struct SpecCallback <: TEvoCallback
     truncerrs::Vector{Float64}
