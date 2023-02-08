@@ -1,5 +1,5 @@
 export apply_gate!,
-    tebd!, TEBD2,
+    tebd!, tebd_save_psi!, TEBD2,
     TEBD2Sweep, TEBD4
 
 abstract type TEBDalg end
@@ -174,6 +174,109 @@ function tebd!(psi::MPS, H::GateList, dt::Number, tf::Number, alg::TEBDalg = TEB
         (orthogonalize_step>0 && step % orthogonalize_step ==0) && reorthogonalize!(psi)
 
         checkdone!(cb) && break
+    end
+    return psi
+end
+
+
+tebd_save_psi!(psi::MPS,H::BondOperator, args...; kwargs...) = tebd_save_psi!(psi,gates(H),args...;kwargs...)
+
+function tebd_save_psi!(psi::MPS, H::GateList, dt::Number, tf::Number, t0::Number, alg::TEBDalg = TEBD2() ; kwargs... )
+    # TODO: think of the best way to avoid inexact error when dt is very small
+    # one option would be to use round(tf/dt) and verify that abs(round(tf/dt)-tf/dt)
+    # is smaller than some threshold. Another option would be to use big(Rational(dt)).
+    nsteps = Int(round(tf/dt))
+
+    # TODO: use ishermitian for imaginary time-evolution once exponentiation
+    # of hermitian ITensor is fixed (see https://github.com/ITensor/NDTensors.jl/pull/15).
+    # ishermitian = get(kwargs, :ishermitian, dt isa Complex && real(dt)==0)
+    ishermitian = get(kwargs, :ishermitian, false)
+
+    cb = get(kwargs,:callback, NoTEvoCallback())
+
+    #import existing psi if any and store t0 until it was propagated
+    # if isfile(cb.file_save_psi*"psi_t.h5")
+    #     f = h5open(cb.file_save_psi*"psi_t.h5","cw")
+    #     t0=parse(Float64,keys(f)[end][5:end])
+    #     psi=read(f,keys(f)[end],MPS)
+    #     close(f)
+    # end
+
+    cb_func(dt,step,rev,se) = (psi; bond, spec) -> apply!(cb,psi;
+                                                              t=dt*step,
+                                                              bond=bond,
+                                                              spec=spec,
+                                                              sweepdir=rev ? "left" : "right",
+                                                              sweepend= se,
+                                                              alg = alg)
+    orthogonalize_step = get(kwargs,:orthogonalize,0)
+
+    #We can bunch together half-time steps, when we don't need to measure observables
+    dtm = callback_dt(cb)
+    if dtm > 0
+        floor(Int64, dtm / dt) != dtm /dt && throw("Measurement time step $dtm incommensurate with time-evolution time step $dt")
+        mstep = floor(Int64,dtm / dt)
+        nbunch = gcd(mstep,nsteps)
+    else
+        nbunch = nsteps
+    end
+    orthogonalize_step > 0 && (nbunch = gcd(nbunch,orthogonalize_step))
+
+    Ustart, Us, Uend = time_evo_gates(dt,H,alg; ishermitian=ishermitian)
+
+    length(Ustart)==0 && length(Uend)==0 && (nbunch+=1)
+
+    pbar = get(kwargs,:progress, true) ? Progress(nsteps, desc="Evolving state... ") : nothing
+
+    step = 0
+    switchdir(rev) = !(rev)
+    rev = false
+    while step < nsteps
+        for U in Ustart
+            apply_gates!(psi, U ; reversed = rev, kwargs...)
+            rev = !rev
+        end
+
+        for i in 1:nbunch-1
+
+            stime = @elapsed begin
+            for U in Us
+                apply_gates!(psi,U; reversed=rev,
+                             cb=cb_func(dt,step,rev,false), kwargs...)
+                rev = !rev
+            end
+            end
+            step += 1
+
+            !isnothing(pbar) && ProgressMeter.next!(pbar, showvalues=[("t", dt*step),
+                                                                  ("dt step time", round(stime,digits=3)),
+                                                                  ("Max bond-dim", maxlinkdim(psi))])
+            checkdone!(cb) && break
+        end
+
+        #finalize the last time step from the bunched steps
+        stime = @elapsed begin
+        for (i,U) in enumerate(Uend)
+            apply_gates!(psi,U; reversed = rev, cb=cb_func(dt,step+1,rev,i>=length(Uend)-1), kwargs...)
+            rev = !rev
+        end
+        end
+
+        if length(Uend)>0
+            step += 1
+            if !isnothing(pbar)
+                ProgressMeter.next!(pbar,
+                                    showvalues=[("t", dt*step),
+                                                ("dt step time", round(stime,digits=3)),
+                                                ("Max bond-dim", maxlinkdim(psi))])
+            end
+        end
+
+        # TODO: make this a callback
+        (orthogonalize_step>0 && step % orthogonalize_step ==0) && reorthogonalize!(psi)
+
+        checkdone!(cb) && break
+        savepsi!(psi,cb,step,dt,t0)
     end
     return psi
 end

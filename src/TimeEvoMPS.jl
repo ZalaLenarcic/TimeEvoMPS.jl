@@ -5,6 +5,7 @@ using Printf
 using KrylovKit: exponentiate
 using ProgressMeter
 using StatsBase
+using ITensors.HDF5
 
 include("itensor.jl")
 include("bondgate.jl")

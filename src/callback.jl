@@ -41,9 +41,11 @@ struct LocalMeasurementCallback <: TEvoCallback
     deriv_tol::Float64
     cd_coefs::Vector{Float64}
     cd_site::Int64
+    dt_save_psi::Float64
+    file_save_psi::String
 end
 
-function LocalMeasurementCallback(ops,sites,dt_measure, SType,deriv_tol,cd_coefs,cd_site)  #ZL: I used to need this SType::String="S=1/2")
+function LocalMeasurementCallback(ops,sites,dt_measure, SType,deriv_tol,cd_coefs,cd_site,dt_save_psi,file_save_psi)
     return LocalMeasurementCallback(ops,
                                     sites,
                                     Dict(o => Measurement[] for o in ops),
@@ -52,7 +54,9 @@ function LocalMeasurementCallback(ops,sites,dt_measure, SType,deriv_tol,cd_coefs
                                     SType,
                                     deriv_tol,
                                     cd_coefs,
-                                    cd_site)
+                                    cd_site,
+                                    dt_save_psi,
+                                    file_save_psi)
 end
 
 measurement_ts(cb::LocalMeasurementCallback) = cb.ts
@@ -164,7 +168,7 @@ end
 
 #checkdone!(cb::LocalMeasurementCallback,args...) = false
 function checkdone!(cb::LocalMeasurementCallback)
-    # implement stopping conditions by looking at sum of measurements
+    # implements stopping conditions by looking at sum of measurements
     # averaged over 10 steps [hardcoded], 
     # weight measurements cb.ops[k] with coefs cb.cd_coefs[k]
     # measurement done on site cb.cd_sites
@@ -250,3 +254,13 @@ function apply!(cb::SpecCallback, psi; t, sweepend,bond,spec,sweepdir, kwargs...
 end
 
 checkdone!(cb::SpecCallback,args...) = false
+
+function savepsi!(psi::MPS,cb::LocalMeasurementCallback,step::Int,dt::Number,t0::Number)
+    # saves psi at times step*dt+t0
+    n_write = round(cb.dt_save_psi/dt)
+    if mod(step,n_write)==0    
+        f = h5open(cb.file_save_psi*"psi_t.h5","cw")
+        write(f,"psi_$(step*dt+t0)",psi)
+        close(f)
+    end
+end
