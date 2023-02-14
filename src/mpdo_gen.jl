@@ -5,9 +5,9 @@ export rho_init,
 
 
 #--------------Define Constants----------------#
-const sz = [1. 0.;0. -1.]
-const sx = [0. 1.; 1. 0.]
-const sy = [0. -1.0im; +1.0im 0.]
+const sz = (1/2.0)*[1. 0.;0. -1.]
+const sx = (1/2.0)*[0. 1.; 1. 0.]
+const sy = (1/2.0)*[0. -1.0im; +1.0im 0.]
 const sp = [0. 1. ; 0. 0.]
 const sm = [0. 0. ; 1. 0.]
 const id_half = [1. 0.; 0. 1.]
