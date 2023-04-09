@@ -229,6 +229,18 @@ function ITensors.op!(Op::ITensor,O::OpName"Sp",::SiteType"mpdo=1/2",s::Index)
 end
 
 
+
+
+#function ITensors.op!(Op::ITensor,O::OpName"sPdntPdn",::SiteType"mpdo=1/2",s::Index)
+#    A=*(kron(Pdn, id_half), kron(id_half, Pdn))
+#    for i in 1:4
+#        for j in 1:4
+#            Op[s'=>i,s=>j] = A[i,j]
+#        end
+#    end
+#end
+
+
 #-------------Define Ops for Spin=1-----------------#
 
 function ITensors.op!(Op::ITensor,O::OpName"Tz",::SiteType"mpdo=1",s::Index)
