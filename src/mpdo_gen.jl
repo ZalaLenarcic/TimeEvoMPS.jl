@@ -11,6 +11,9 @@ const sy = (1/2.0)*[0. -1.0im; +1.0im 0.]
 const sp = [0. 1. ; 0. 0.]
 const sm = [0. 0. ; 1. 0.]
 const id_half = [1. 0.; 0. 1.]
+const Pdn = [0. 0. ; 0. 1.]
+const Pup = [1. 0. ; 0. 0.]
+
 
 const sz_1 = [1. 0. 0.;0. 0. 0.;0. 0. -1.]
 const sx_1 = (1.0/sqrt(2.0))*[0. 1. 0.;1. 0. 1.;0. 1. 0.]
@@ -30,6 +33,48 @@ ITensors.space(::SiteType"mpdo=1") = 9
 ITensors.space(::SiteType"mpdo=1/2") = 4
 
 #--------------Define Ops for spin=1/2-------------------#
+
+
+
+
+function ITensors.op!(Op::ITensor,O::OpName"TPdn",::SiteType"mpdo=1/2",s::Index)
+    A=kron(id_half, Pdn)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+        
+        
+function ITensors.op!(Op::ITensor,O::OpName"SPdn",::SiteType"mpdo=1/2",s::Index)
+    A=kron(Pdn, id_half)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+        
+        
+function ITensors.op!(Op::ITensor,O::OpName"SPup",::SiteType"mpdo=1/2",s::Index)
+    A=kron(Pup, id_half)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+        
+        
+function ITensors.op!(Op::ITensor,O::OpName"TPup",::SiteType"mpdo=1/2",s::Index)
+    A=kron(id_half, Pup)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
 
 function ITensors.op!(Op::ITensor,O::OpName"Tz",::SiteType"mpdo=1/2",s::Index)
     A=kron(id_half, sz)
@@ -144,6 +189,56 @@ function ITensors.op!(Op::ITensor,O::OpName"TpTm",::SiteType"mpdo=1/2",s::Index)
     end
 end
 
+
+
+function ITensors.op!(Op::ITensor,O::OpName"Tp",::SiteType"mpdo=1/2",s::Index)
+    A=kron(id_half, sp)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+        
+function ITensors.op!(Op::ITensor,O::OpName"Tm",::SiteType"mpdo=1/2",s::Index)
+    A=kron(id_half, sm)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+        
+        
+function ITensors.op!(Op::ITensor,O::OpName"Sm",::SiteType"mpdo=1/2",s::Index)
+    A=kron(sm, id_half)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+        
+function ITensors.op!(Op::ITensor,O::OpName"Sp",::SiteType"mpdo=1/2",s::Index)
+    A=kron(sp, id_half)
+    for i in 1:4
+        for j in 1:4
+            Op[s'=>i,s=>j] = A[i,j]
+        end
+    end
+end
+
+
+
+
+#function ITensors.op!(Op::ITensor,O::OpName"sPdntPdn",::SiteType"mpdo=1/2",s::Index)
+#    A=*(kron(Pdn, id_half), kron(id_half, Pdn))
+#    for i in 1:4
+#        for j in 1:4
+#            Op[s'=>i,s=>j] = A[i,j]
+#        end
+#    end
+#end
 
 
 #-------------Define Ops for Spin=1-----------------#
